@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Bắn Cá Đơn Giản</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #1a1a1a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+            color: white;
+            overflow: hidden;
+        }
+        #gameContainer {
+            position: relative;
+        }
+        canvas {
+            border: 4px solid #00d2ff;
+            box-shadow: 0 0 20px rgba(0, 210, 255, 0.5);
+            background: linear-gradient(to bottom, #005c97, #363795);
+            cursor: crosshair;
+        }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 15px;
+            font-size: 20px;
+            font-weight: bold;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+<div id="gameContainer">
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <div id="ui">Điểm: <span id="score">0</span></div>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('score');
+
+let score = 0;
+
+// Vị trí khẩu pháo (ở giữa dưới cùng màn hình)
+const cannon = {
+    x: canvas.width / 2,
+    y: canvas.height - 30,
+    angle: 0
+};
+
+// Mảng chứa cá và đạn
+let fishes = [];
+let bullets = [];
+
+// Xử lý góc xoay của pháo theo con trỏ chuột
+canvas.addEventListener('mousemove', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    cannon.angle = Math.atan2(mouseY - cannon.y, mouseX - cannon.x);
+});
+
+// Xử lý bắn đạn khi click chuột
+canvas.addEventListener('click', (e) => {
+    const speed = 8;
+    bullets.push({
+        x: cannon.x,
+        y: cannon.y,
+        vx: Math.cos(cannon.angle) * speed,
+        vy: Math.sin(cannon.angle) * speed,
+        radius: 5
+    });
+});
+
+// Tạo cá mới xuất hiện ngẫu nhiên
+function spawnFish() {
+    if (Math.random() < 0.03) { // Tần suất xuất hiện cá
+        const radius = Math.random() * 15 + 10;
+        const speed = Math.random() * 2 + 1;
+        const fromLeft = Math.random() < 0.5;
+        
+        fishes.push({
+            x: fromLeft ? -radius : canvas.width + radius,
+            y: Math.random() * (canvas.height - 150) + 50,
+            vx: fromLeft ? speed : -speed,
+            radius: radius,
+            color: `hsl(${Math.random() * 360}, 80%, 50%)`,
+            hp: Math.floor(radius / 5) // Cá to thì máu nhiều hơn
+        });
+    }
+}
+
+// Vòng lặp cập nhật và vẽ game
+function update() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 1. Tạo cá
+    spawnFish();
+
+    // 2. Cập nhật và vẽ pháo
+    ctx.save();
+    ctx.translate(cannon.x, cannon.y);
+    ctx.rotate(cannon.angle);
+    ctx.fillStyle = '#ff4757';
+    ctx.fillRect(0, -10, 40, 20); // Nòng pháo
+    ctx.restore();
+    
+    // Đế pháo
+    ctx.beginPath();
+    ctx.arc(cannon.x, cannon.y, 25, 0, Math.PI * 2);
+    ctx.fillStyle = '#2ed573';
+    ctx.fill();
+
+    // 3. Cập nhật và vẽ đạn
+    for (let i = bullets.length - 1; i >= 0; i--) {
+        let b = bullets[i];
+        b.x += b.vx;
+        b.y += b.vy;
+
+        // Vẽ đạn
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffa500';
+        ctx.fill();
+
+        // Xóa đạn ra khỏi màn hình
+        if (b.x < 0 || b.x > canvas.width || b.y < 0 || b.y > canvas.height) {
+            bullets.splice(i, 1);
+        }
+    }
+
+    // 4. Cập nhật và vẽ cá
+    for (let i = fishes.length - 1; i >= 0; i--) {
+        let f = fishes[i];
+        f.x += f.vx;
+
+        // Vẽ cá
+        ctx.beginPath();
+        ctx.arc(f.x, f.y, f.radius, 0, Math.PI * 2);
+        ctx.fillStyle = f.color;
+        ctx.fill();
+
+        // Xóa cá khi bơi khỏi màn hình
+        if ((f.vx > 0 && f.x > canvas.width + f.radius) || 
+            (f.vx < 0 && f.x < -f.radius)) {
+            fishes.splice(i, 1);
+            continue;
+        }
+
+        // 5. Va chạm giữa đạn và cá
+        for (let j = bullets.length - 1; j >= 0; j--) {
+            let b = bullets[j];
+            let dist = Math.hypot(b.x - f.x, b.y - f.y);
+
+            if (dist < b.radius + f.radius) {
+                f.hp--;
+                bullets.splice(j, 1); // Xóa đạn khi trúng
+
+                if (f.hp <= 0) {
+                    score += Math.floor(f.radius);
+                    scoreEl.innerText = score;
+                    fishes.splice(i, 1); // Xóa cá khi hết máu
+                    break;
+                }
+            }
+        }
+    }
+
+    requestAnimationFrame(update);
+}
+
+// Bắt đầu game
+update();
+</script>
+
+</body>
+</html>

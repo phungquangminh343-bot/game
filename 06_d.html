@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Neon Alchemist: Spell Crafter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            box-sizing: border-box;
+            touch-action: manipulation;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background-color: #030308;
+            font-family: 'Rajdhani', sans-serif;
+            color: #e2e8f0;
+        }
+        .font-orbitron {
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        /* Neon Glow Effects */
+        .neon-box {
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.2), inset 0 0 15px rgba(0, 243, 255, 0.1);
+            border: 1px solid rgba(0, 243, 255, 0.4);
+        }
+        .neon-box-pink {
+            box-shadow: 0 0 15px rgba(255, 0, 127, 0.3), inset 0 0 15px rgba(255, 0, 127, 0.1);
+            border: 1px solid rgba(255, 0, 127, 0.5);
+        }
+        .neon-text-cyan {
+            text-shadow: 0 0 8px #00f3ff, 0 0 16px #00f3ff;
+        }
+        .neon-text-pink {
+            text-shadow: 0 0 8px #ff007f, 0 0 16px #ff007f;
+        }
+        .neon-text-gold {
+            text-shadow: 0 0 8px #ffd700, 0 0 16px #ffd700;
+        }
+
+        /* Element Cards & Animations */
+        .element-card {
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+            backdrop-filter: blur(8px);
+        }
+        .element-card:hover {
+            transform: translateY(-4px) scale(1.05);
+            box-shadow: 0 0 20px currentColor;
+        }
+        .element-card:active {
+            transform: scale(0.95);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(5, 5, 15, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 243, 255, 0.3);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 243, 255, 0.6);
+        }
+
+        /* Pulse Animations */
+        @keyframes pulseGlow {
+            0%, 100% { filter: drop-shadow(0 0 5px rgba(0, 243, 255, 0.6)); }
+            50% { filter: drop-shadow(0 0 20px rgba(255, 0, 127, 0.8)); }
+        }
+        .cauldron-glow {
+            animation: pulseGlow 3s infinite ease-in-out;
+        }
+
+        @keyframes floatSlow {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-8px) rotate(2deg); }
+        }
+        .floating {
+            animation: floatSlow 4s ease-in-out infinite;
+        }
+
+        /* Canvas Overlay */
+        #particle-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen w-screen overflow-hidden select-none bg-slate-950">
+
+    <!-- Particle Background Canvas -->
+    <canvas id="particle-canvas"></canvas>
+
+    <!-- TOP NAVIGATION BAR -->
+    <header class="h-16 border-b border-cyan-500/30 bg-slate-900/80 backdrop-blur-md px-4 flex items-center justify-between z-20">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-pink-500 flex items-center justify-center font-black font-orbitron text-xl shadow-lg shadow-cyan-500/30">
+                ⚡
+            </div>
+            <div>
+                <h1 class="font-orbitron font-extrabold text-lg md:text-xl text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-pink-400 to-yellow-300 neon-text-cyan">
+                    NEON ALCHEMIST
+                </h1>
+                <p class="text-xs text-cyan-400/70 font-semibold tracking-wider">SPELL CRAFTER v2.0</p>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="flex items-center gap-2 bg-slate-950/60 p-1.5 rounded-xl border border-slate-800">
+            <button onclick="switchTab('alchemy')" id="tab-alchemy" class="px-3 md:px-5 py-2 rounded-lg font-orbitron font-bold text-xs md:text-sm transition-all bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 shadow-md shadow-cyan-500/20">
+                🔮 Lò Giả Kim
+            </button>
+            <button onclick="switchTab('grimoire')" id="tab-grimoire" class="px-3 md:px-5 py-2 rounded-lg font-orbitron font-bold text-xs md:text-sm transition-all text-slate-400 hover:text-white hover:bg-slate-800">
+                📖 Sách Phép (<span id="unlocked-count">8</span>/<span id="total-count">42</span>)
+            </button>
+            <button onclick="switchTab('quests')" id="tab-quests" class="px-3 md:px-5 py-2 rounded-lg font-orbitron font-bold text-xs md:text-sm transition-all text-slate-400 hover:text-white hover:bg-slate-800 relative">
+                📜 Nhiệm Vụ
+                <span id="quest-badge" class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-pink-500 rounded-full animate-ping hidden"></span>
+            </button>
+            <button onclick="switchTab('arena')" id="tab-arena" class="px-3 md:px-5 py-2 rounded-lg font-orbitron font-bold text-xs md:text-sm transition-all text-slate-400 hover:text-white hover:bg-slate-800">
+                ⚔️ Thử Nghiệm
+            </button>
+        </div>
+
+        <!-- Audio & Settings -->
+        <div class="flex items-center gap-2">
+            <button id="sound-btn" onclick="toggleAudio()" class="p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-cyan-400 hover:border-cyan-400 transition-all">
+                🔊
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT AREA -->
+    <main class="flex-1 relative overflow-hidden flex z-10">
+
+        <!-- TAB 1: ALCHEMY CRAFTING WORKSPACE -->
+        <section id="view-alchemy" class="w-full h-full flex flex-col md:flex-row p-4 gap-4">
+            
+            <!-- Workbench Area (Left/Center) -->
+            <div class="flex-1 flex flex-col items-center justify-between bg-slate-900/40 rounded-2xl border border-cyan-500/20 backdrop-blur-sm p-4 relative overflow-hidden">
+                
+                <!-- Status & Hint Banner -->
+                <div class="w-full flex justify-between items-center bg-slate-950/60 p-3 rounded-xl border border-slate-800/80">
+                    <div class="text-xs md:text-sm font-semibold text-slate-300 flex items-center gap-2">
+                        <span class="text-pink-400">💡 Gợi ý:</span>
+                        <span id="craft-hint" class="text-cyan-300">Chọn hoặc kéo 2 nguyên tố vào Bàn Chế Tạo để dung hợp!</span>
+                    </div>
+                    <button onclick="clearCraftingSlots()" class="px-3 py-1 rounded-lg text-xs font-bold font-orbitron bg-rose-500/20 text-rose-300 border border-rose-500/30 hover:bg-rose-500/40 transition-all">
+                        🗑️ Xóa Bàn
+                    </button>
+                </div>
+
+                <!-- Central Crucible / Mixing Zone -->
+                <div class="relative w-full max-w-lg h-72 my-auto flex items-center justify-center">
+                    
+                    <!-- Neon Circle Cauldron Effect -->
+                    <div class="absolute inset-0 m-auto w-64 h-64 rounded-full border-2 border-dashed border-cyan-400/40 cauldron-glow flex items-center justify-center">
+                        <div class="w-48 h-48 rounded-full border border-pink-500/30 bg-gradient-to-tr from-cyan-950/30 to-pink-950/30 backdrop-blur-md flex items-center justify-center">
+                            <span id="fusion-energy" class="text-4xl opacity-20 floating">✨</span>
+                        </div>
+                    </div>
+
+                    <!-- Slot 1 -->
+                    <div id="slot-1" onclick="clearSlot(1)" class="absolute left-4 md:left-8 w-24 h-28 rounded-2xl border-2 border-dashed border-cyan-400/50 bg-slate-950/70 flex flex-col items-center justify-center cursor-pointer hover:border-cyan-400 transition-all shadow-lg">
+                        <span class="text-2xl opacity-40">➕</span>
+                        <span class="text-[10px] font-orbitron text-slate-500 mt-2">NGUYÊN TỐ 1</span>
+                    </div>
+
+                    <!-- Merge Indicator / Fuse Button -->
+                    <button onclick="fuseElements()" id="fuse-btn" class="z-20 px-6 py-3 rounded-2xl bg-gradient-to-r from-cyan-500 to-pink-500 font-orbitron font-black text-sm tracking-widest text-white shadow-lg shadow-pink-500/30 hover:scale-110 active:scale-95 transition-all neon-box-pink disabled:opacity-40 disabled:hover:scale-100">
+                        ⚡ DUNG HỢP
+                    </button>
+
+                    <!-- Slot 2 -->
+                    <div id="slot-2" onclick="clearSlot(2)" class="absolute right-4 md:right-8 w-24 h-28 rounded-2xl border-2 border-dashed border-pink-400/50 bg-slate-950/70 flex flex-col items-center justify-center cursor-pointer hover:border-pink-400 transition-all shadow-lg">
+                        <span class="text-2xl opacity-40">➕</span>
+                        <span class="text-[10px] font-orbitron text-slate-500 mt-2">NGUYÊN TỐ 2</span>
+                    </div>
+                </div>
+
+                <!-- Last Crafted Banner -->
+                <div id="result-banner" class="w-full bg-slate-950/80 rounded-xl p-3 border border-slate-800 text-center min-h-[50px] flex items-center justify-center">
+                    <span class="text-xs text-slate-400">Kết quả chế tạo gần nhất sẽ hiện tại đây</span>
+                </div>
+            </div>
+
+            <!-- Element Inventory Rack (Right) -->
+            <div class="w-full md:w-80 lg:w-96 bg-slate-900/60 rounded-2xl border border-slate-800 p-4 flex flex-col h-64 md:h-auto backdrop-blur-md">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="font-orbitron font-bold text-cyan-400 text-sm tracking-wider flex items-center gap-2">
+                        <span>🧪</span> TỦ NGUYÊN TỐ
+                    </h2>
+                    <input type="text" id="search-element" oninput="filterElements()" placeholder="Tìm kiếm..." class="w-28 px-2 py-1 bg-slate-950 rounded-lg text-xs border border-slate-700 focus:outline-none focus:border-cyan-400 text-cyan-200">
+                </div>
+
+                <!-- Scrollable Element Grid -->
+                <div id="element-grid" class="flex-1 overflow-y-auto grid grid-cols-3 sm:grid-cols-4 md:grid-cols-3 gap-2.5 p-1">
+                    <!-- Elements dynamically rendered -->
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: GRIMOIRE / ENCYCLOPEDIA -->
+        <section id="view-grimoire" class="w-full h-full p-6 hidden overflow-y-auto">
+            <div class="max-w-5xl mx-auto flex flex-col gap-6">
+                <div class="flex justify-between items-center border-b border-slate-800 pb-4">
+                    <div>
+                        <h2 class="font-orbitron font-black text-2xl text-cyan-400 neon-text-cyan">SÁCH PHÉP BÍ TRUYỀN</h2>
+                        <p class="text-xs text-slate-400">Khám phá công thức và tri thức của thế giới Giả Kim Neon</p>
+                    </div>
+                    <div class="text-right">
+                        <span class="font-orbitron font-bold text-2xl text-pink-400" id="grimoire-stats">8 / 42</span>
+                        <div class="text-[10px] text-slate-500 uppercase tracking-widest font-orbitron">Đã Khai Phá</div>
+                    </div>
+                </div>
+
+                <!-- Grimoire Grid -->
+                <div id="grimoire-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                    <!-- Cards dynamically injected -->
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: QUESTS & PUZZLES -->
+        <section id="view-quests" class="w-full h-full p-6 hidden overflow-y-auto">
+            <div class="max-w-4xl mx-auto flex flex-col gap-6">
+                <div class="border-b border-slate-800 pb-4">
+                    <h2 class="font-orbitron font-black text-2xl text-pink-400 neon-text-pink">NHIỆM VỤ GIẢ KIM</h2>
+                    <p class="text-xs text-slate-400">Hoàn thành các đơn hàng phép thuật để nhận danh hiệu và năng lượng bí ẩn</p>
+                </div>
+
+                <div id="quest-list" class="flex flex-col gap-4">
+                    <!-- Quests dynamically injected -->
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: SPELL TESTING ARENA (MINIGAME) -->
+        <section id="view-arena" class="w-full h-full p-4 hidden flex flex-col items-center justify-center">
+            <div class="w-full max-w-4xl h-full flex flex-col bg-slate-900/80 rounded-2xl border border-cyan-500/30 overflow-hidden relative">
+                <!-- Arena HUD -->
+                <div class="p-4 bg-slate-950 flex justify-between items-center border-b border-slate-800">
+                    <div class="flex items-center gap-3">
+                        <span class="text-2xl">🏰</span>
+                        <div>
+                            <h3 class="font-orbitron font-bold text-sm text-cyan-300">THỬ NGHIỆM PHÉP THUẬT: PHÒNG THỦ NEON</h3>
+                            <p class="text-[11px] text-slate-400">Chọn phép đã chế tạo để tiêu diệt các quái vật hư không!</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-4 font-orbitron font-bold text-xs">
+                        <div>ĐIỂM: <span id="arena-score" class="text-yellow-400 text-base">0</span></div>
+                        <div>MẠNG THÁP: <span id="arena-hp" class="text-pink-400 text-base">❤️❤️❤️</span></div>
+                    </div>
+                </div>
+
+                <!-- Arena Canvas -->
+                <div class="flex-1 relative bg-slate-950 overflow-hidden" id="arena-container">
+                    <canvas id="arena-canvas" class="w-full h-full block"></canvas>
+                    
+                    <!-- Overlay Start Button -->
+                    <div id="arena-start-overlay" class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center gap-4 z-20">
+                        <h2 class="font-orbitron font-black text-3xl text-cyan-400 neon-text-cyan">THỬ NGHIỆM PHÉP THUẬT</h2>
+                        <p class="text-xs text-slate-300 max-w-md text-center leading-relaxed">
+                            Bắn các phép thuật bạn đã mở khóa vào sinh vật hư không đang lao đến tháp! 
+                            Mỗi loại phép có thuộc tính gây sát thương khác nhau.
+                        </p>
+                        <button onclick="startArenaGame()" class="neon-btn font-orbitron font-extrabold px-8 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-pink-500 text-white shadow-lg shadow-pink-500/40 hover:scale-105 transition-all">
+                            ▶ BẮT ĐẦU TRẬN ĐẤU
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Spell Bar for Battle -->
+                <div class="p-3 bg-slate-950 border-t border-slate-800 flex items-center justify-center gap-3 overflow-x-auto" id="arena-spellbar">
+                    <!-- Spells dynamically loaded -->
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        /* ---------------------------------------------------
+           1. DATA DEFINITIONS & RECIPES (40+ ELEMENTS)
+        --------------------------------------------------- */
+        const ALL_ELEMENTS = {
+            // BASE ELEMENTS (Unlocked by default)
+            fire: { id: 'fire', name: 'Lửa Neon', emoji: '🔥', color: '#ff0055', desc: 'Sức nóng nguyên thủy rực rỡ.', base: true },
+            water: { id: 'water', name: 'Nước Lam', emoji: '💧', color: '#00f3ff', desc: 'Dòng chảy năng lượng mềm mại.', base: true },
+            air: { id: 'air', name: 'Khí Phong', emoji: '💨', color: '#a855f7', desc: 'Luồng gió vô hình chuyển động.', base: true },
+            earth: { id: 'earth', name: 'Đất Nham', emoji: '🪨', color: '#10b981', desc: 'Vật chất nền tảng vững chắc.', base: true },
+            lightning: { id: 'lightning', name: 'Sấm Điện', emoji: '⚡', color: '#facc15', desc: 'Xung điện cao thế phát sáng.', base: true },
+            light: { id: 'light', name: 'Quang Quang', emoji: '✨', color: '#ffffff', desc: 'Ánh sáng thuần khiết neon.', base: true },
+            darkness: { id: 'darkness', name: 'Bóng Hư Không', emoji: '🌑', color: '#64748b', desc: 'Màn đêm nuốt chửng năng lượng.', base: true },
+            time: { id: 'time', name: 'Thời Gian', emoji: '⏳', color: '#ec4899', desc: 'Dòng thời gian bí ẩn.', base: true },
+
+            // TIER 2 COMBINATIONS
+            steam: { id: 'steam', name: 'Hơi Nước', emoji: '♨️', color: '#38bdf8', desc: 'Lửa nướng chín Nước.' },
+            lava: { id: 'lava', name: 'Dung Nham', emoji: '🌋', color: '#f97316', desc: 'Đất đá tan chảy trong Lửa.' },
+            plant: { id: 'plant', name: 'Mầm Sinh Cơ', emoji: '🌱', color: '#22c55e', desc: 'Nước tưới mát Đất mầm.' },
+            energy: { id: 'energy', name: 'Lăng Kính Năng Lượng', emoji: '🔋', color: '#8b5cf6', desc: 'Khí kết hợp với Sấm Điện.' },
+            dust: { id: 'dust', name: 'Bụi Vũ Trụ', emoji: '✨', color: '#d97706', desc: 'Đất cùng Khí hòa làm một.' },
+            storm: { id: 'storm', name: 'Bão Điện', emoji: '🌩️', color: '#0284c7', desc: 'Gió lốc cuốn theo Sấm Điện.' },
+            shadow: { id: 'shadow', name: 'Ảo Ảnh Tối', emoji: '👤', color: '#475569', desc: 'Sự pha trộn Đêm và Ánh Sáng.' },
+            plasma: { id: 'plasma', name: 'Huyết Plasma', emoji: '🔮', color: '#e11d48', desc: 'Lửa bị kích hoạt bởi Điện.' },
+
+            // TIER 3 ADVANCED SPELLS & CREATURES
+            life: { id: 'life', name: 'Sinh Mệnh Neon', emoji: '🧬', color: '#10b981', desc: 'Mầm Sinh Cơ hấp thụ Năng Lượng.' },
+            crystal: { id: 'crystal', name: 'Pha Lê Neon', emoji: '💎', color: '#06b6d4', desc: 'Dung Nham nguội lạnh cô đọng.' },
+            phoenix: { id: 'phoenix', name: 'Phượng Hoàng Neon', emoji: '🐦‍🔥', color: '#ff0055', desc: 'Lửa hóa thân cùng Sinh Mệnh.' },
+            dragon: { id: 'dragon', name: 'Rồng Rồng Điện', emoji: '🐉', color: '#8b5cf6', desc: 'Sinh Mệnh kết hợp Dung Nham.' },
+            golem: { id: 'golem', name: 'Golem Đá', emoji: '🗿', color: '#059669', desc: 'Đất đá có Sinh Mệnh.' },
+            time_portal: { id: 'time_portal', name: 'Cổng Thời Không', emoji: '🌀', color: '#d946ef', desc: 'Thời Gian cùng Năng Lượng.' },
+            blackhole: { id: 'blackhole', name: 'Hố Đen', emoji: '🕳️', color: '#1e293b', desc: 'Bóng Hư Không cuốn Thời Gian.' },
+            sun: { id: 'sun', name: 'Thái Dương Neon', emoji: '☀️', color: '#f59e0b', desc: 'Lửa đạt cực hạn cùng Ánh Sáng.' },
+            moon: { id: 'moon', name: 'Thái Âm Neon', emoji: '🌙', color: '#94a3b8', desc: 'Quang Quang chìm trong Hư Không.' },
+            tsunami: { id: 'tsunami', name: 'Sóng Thần Lam', emoji: '🌊', color: '#0284c7', desc: 'Nước kết hợp Bão Điện.' },
+
+            // TIER 4 MYTHICAL & ARTIFACTS
+            cyber_elf: { id: 'cyber_elf', name: 'Tinh Linh Cyber', emoji: '🧚‍♀️', color: '#f43f5e', desc: 'Sinh Mệnh hòa cùng Ánh Sáng.' },
+            nebula: { id: 'nebula', name: 'Tinh Vân Neon', emoji: '🌌', color: '#c084fc', desc: 'Bụi Vũ Trụ hòa Thái Dương.' },
+            chronos: { id: 'chronos', name: 'Thần Thời Gian', emoji: '⌛', color: '#f472b6', desc: 'Cổng Thời Không mang Sinh Mệnh.' },
+            shield: { id: 'shield', name: 'Khiên Quang Phổ', emoji: '🛡️', color: '#38bdf8', desc: 'Pha Lê cường hóa Ánh Sáng.' },
+            sword: { id: 'sword', name: 'Thánh Kiếm Plasma', emoji: '🗡️', color: '#fb7185', desc: 'Plasma rèn bằng Pha Lê.' },
+            potion: { id: 'potion', name: 'Thuốc Trường Sinh', emoji: '🧪', color: '#34d399', desc: 'Nước kết hợp Sinh Mệnh.' },
+            cyborg: { id: 'cyborg', name: 'Robot Giả Kim', emoji: '🤖', color: '#64748b', desc: 'Golem lắp Năng Lượng.' },
+             supernova: { id: 'supernova', name: 'Siêu Tân Star', emoji: '💥', color: '#fbbf24', desc: 'Thái Dương va chạm Hố Đen.' },
+
+            // TIER 5 ULTIMATE LEGENDS
+            philosopher_stone: { id: 'philosopher_stone', name: 'Đá Hiền Triết Neon', emoji: '🔮', color: '#e11d48', desc: 'Pha Lê + Thuốc Trường Sinh.' },
+            cyber_god: { id: 'cyber_god', name: 'Đấng Sáng Tạo Neon', emoji: '👑', color: '#ffd700', desc: 'Đá Hiền Triết + Tinh Vân Neon.' },
+            infinity_void: { id: 'infinity_void', name: 'Vô Cực Hư Không', emoji: '🌌', color: '#a855f7', desc: 'Hố Đen + Cổng Thời Không.' },
+            aurora: { id: 'aurora', name: 'Cực Quang Cyber', emoji: '🎆', color: '#22d3ee', desc: 'Bão Điện chiếu Ánh Sáng.' },
+            laser: { id: 'laser', name: 'Tia Laser Chuẩn', emoji: '🔴', color: '#ef4444', desc: 'Lửa tập trung bằng Pha Lê.' },
+            matrix: { id: 'matrix', name: 'Mạng Lưới Matrix', emoji: '🖥️', color: '#10b981', desc: 'Năng Lượng + Robot Giả Kim.' }
+        };
+
+        // Recipes Mapping (Sorted element IDs to result)
+        const CRAFT_RECIPES = {
+            'fire+water': 'steam',
+            'earth+fire': 'lava',
+            'earth+water': 'plant',
+            'air+lightning': 'energy',
+            'air+earth': 'dust',
+            'air+lightning': 'storm',
+            'darkness+light': 'shadow',
+            'fire+lightning': 'plasma',
+            'energy+plant': 'life',
+            'lava+water': 'crystal',
+            'fire+life': 'phoenix',
+            'lava+life': 'dragon',
+            'earth+life': 'golem',
+            'energy+time': 'time_portal',
+            'darkness+time': 'blackhole',
+            'fire+light': 'sun',
+            'darkness+light': 'moon',
+            'storm+water': 'tsunami',
+            'life+light': 'cyber_elf',
+            'dust+sun': 'nebula',
+            'life+time_portal': 'chronos',
+            'crystal+light': 'shield',
+            'crystal+plasma': 'sword',
+            'life+water': 'potion',
+            'energy+golem': 'cyborg',
+            'blackhole+sun': 'supernova',
+            'crystal+potion': 'philosopher_stone',
+            'nebula+philosopher_stone': 'cyber_god',
+            'blackhole+time_portal': 'infinity_void',
+            'aurora': 'air+light',
+            'crystal+fire': 'laser',
+            'cyborg+energy': 'matrix'
+        };
+
+        /* ---------------------------------------------------
+           2. AUDIO SYNTHESIZER (Web Audio API)
+        --------------------------------------------------- */
+        class NeonSynth {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+            }
+
+            init() {
+                if (this.ctx) return;
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                this.ctx = new AudioCtx();
+            }
+
+            playCraftSound(success = true) {
+                if (!this.enabled) return;
+                this.init();
+
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                if (success) {
+                    // Futuristic Arpeggio
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(440, now);
+                    osc.frequency.exponentialRampToValueAtTime(880, now + 0.15);
+                    osc.frequency.exponentialRampToValueAtTime(1320, now + 0.3);
+
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                } else {
+                    // Low Fizzle
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(180, now);
+                    osc.frequency.exponentialRampToValueAtTime(60, now + 0.25);
+
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                }
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(now + 0.4);
+            }
+
+            playClick() {
+                if (!this.enabled) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, now);
+                osc.frequency.exponentialRampToValueAtTime(400, now + 0.05);
+
+                gain.gain.setValueAtTime(0.05, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.05);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(now + 0.05);
+            }
+        }
+
+        const synth = new NeonSynth();
+
+        function toggleAudio() {
+            synth.enabled = !synth.enabled;
+            const btn = document.getElementById('sound-btn');
+            btn.textContent = synth.enabled ? '🔊' : '🔇';
+            btn.classList.toggle('border-cyan-400', synth.enabled);
+            btn.classList.toggle('border-rose-500', !synth.enabled);
+        }
+
+        /* ---------------------------------------------------
+           3. GAME STATE & LOCALSTORAGE
+        --------------------------------------------------- */
+        let state = {
+            unlocked: ['fire', 'water', 'air', 'earth', 'lightning', 'light', 'darkness', 'time'],
+            slot1: null,
+            slot2: null,
+            completedQuests: [],
+            arenaScore: 0
+        };
+
+        const QUESTS = [
+            { id: 'q1', title: 'Tạo Hơi Nước', desc: 'Dung hợp Lửa Neon và Nước Lam.', target: 'steam', reward: 'Khóa học Giả kim cơ bản' },
+            { id: 'q2', title: 'Đôi Bàn Tay Sinh Mệnh', desc: 'Chế tạo Sinh Mệnh Neon.', target: 'life', reward: 'Danh hiệu Nhà Sinh Học Neon' },
+            { id: 'q3', title: 'Rồng Truyền Thuyết', desc: 'Lai tạo Rồng Rồng Điện từ Dung Nham.', target: 'dragon', reward: 'Phép thuật Rồng' },
+            { id: 'q4', title: 'Chế Tạo Bội Kiếm', desc: 'Tạo nên Thánh Kiếm Plasma rực rỡ.', target: 'sword', reward: 'Vũ khí Huyền Thoại' },
+            { id: 'q5', title: 'Đá Hiền Triết', desc: 'Chế tạo Đá Hiền Triết Neon tối thượng.', target: 'philosopher_stone', reward: 'Bậc Thầy Giả Kim' }
+        ];
+
+        function loadState() {
+            const saved = localStorage.getItem('neon_alchemist_save');
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    state.unlocked = parsed.unlocked || state.unlocked;
+                    state.completedQuests = parsed.completedQuests || [];
+                } catch(e) {}
+            }
+            updateCounters();
+        }
+
+        function saveState() {
+            localStorage.setItem('neon_alchemist_save', JSON.stringify({
+                unlocked: state.unlocked,
+                completedQuests: state.completedQuests
+            }));
+            updateCounters();
+        }
+
+        function updateCounters() {
+            document.getElementById('unlocked-count').textContent = state.unlocked.length;
+            document.getElementById('total-count').textContent = Object.keys(ALL_ELEMENTS).length;
+            document.getElementById('grimoire-stats').textContent = `${state.unlocked.length} / ${Object.keys(ALL_ELEMENTS).length}`;
+        }
+
+        /* ---------------------------------------------------
+           4. ALCHEMY WORKSPACE RENDER & LOGIC
+        --------------------------------------------------- */
+        function renderElementGrid(filterText = '') {
+            const grid = document.getElementById('element-grid');
+            grid.innerHTML = '';
+
+            state.unlocked.forEach(id => {
+                const el = ALL_ELEMENTS[id];
+                if (!el) return;
+                if (filterText && !el.name.toLowerCase().includes(filterText.toLowerCase())) return;
+
+                const card = document.createElement('div');
+                card.className = `element-card p-2 rounded-xl border border-slate-700 bg-slate-950/70 flex flex-col items-center justify-center text-center shadow-md`;
+                card.style.borderColor = el.color + '66';
+                card.onclick = () => selectElementForCrafting(id);
+
+                card.innerHTML = `
+                    <span class="text-2xl mb-1">${el.emoji}</span>
+                    <span class="text-[11px] font-bold text-slate-200 line-clamp-1">${el.name}</span>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function filterElements() {
+            const val = document.getElementById('search-element').value;
+            renderElementGrid(val);
+        }
+
+        function selectElementForCrafting(id) {
+            synth.playClick();
+            if (!state.slot1) {
+                state.slot1 = id;
+            } else if (!state.slot2) {
+                state.slot2 = id;
+            } else {
+                state.slot1 = id;
+                state.slot2 = null;
+            }
+            updateCraftingSlots();
+        }
+
+        function updateCraftingSlots() {
+            const slot1El = document.getElementById('slot-1');
+            const slot2El = document.getElementById('slot-2');
+
+            renderSlot(slot1El, state.slot1, 1);
+            renderSlot(slot2El, state.slot2, 2);
+
+            const fuseBtn = document.getElementById('fuse-btn');
+            fuseBtn.disabled = !(state.slot1 && state.slot2);
+        }
+
+        function renderSlot(container, elementId, slotNum) {
+            if (!elementId) {
+                container.innerHTML = `
+                    <span class="text-2xl opacity-40">➕</span>
+                    <span class="text-[10px] font-orbitron text-slate-500 mt-2">NGUYÊN TỐ ${slotNum}</span>
+                `;
+                container.style.borderColor = slotNum === 1 ? 'rgba(0, 243, 255, 0.4)' : 'rgba(255, 0, 127, 0.4)';
+                return;
+            }
+
+            const el = ALL_ELEMENTS[elementId];
+            container.innerHTML = `
+                <span class="text-3xl mb-1">${el.emoji}</span>
+                <span class="text-xs font-bold text-white text-center leading-tight px-1">${el.name}</span>
+            `;
+            container.style.borderColor = el.color;
+            container.style.boxShadow = `0 0 15px ${el.color}66`;
+        }
+
+        function clearSlot(slotNum) {
+            synth.playClick();
+            if (slotNum === 1) state.slot1 = null;
+            if (slotNum === 2) state.slot2 = null;
+            updateCraftingSlots();
+        }
+
+        function clearCraftingSlots() {
+            synth.playClick();
+            state.slot1 = null;
+            state.slot2 = null;
+            updateCraftingSlots();
+        }
+
+        function fuseElements() {
+            if (!state.slot1 || !state.slot2) return;
+
+            // Sort keys to align with recipe map
+            const pair1 = `${state.slot1}+${state.slot2}`;
+            const pair2 = `${state.slot2}+${state.slot1}`;
+
+            let resultId = null;
+
+            // Direct recipe match or reverse match search
+            for (let [recipeKey, target] of Object.entries(CRAFT_RECIPES)) {
+                if (recipeKey === pair1 || recipeKey === pair2) {
+                    resultId = target;
+                    break;
+                }
+            }
+
+            const resultBanner = document.getElementById('result-banner');
+
+            if (resultId && ALL_ELEMENTS[resultId]) {
+                const res = ALL_ELEMENTS[resultId];
+                synth.playCraftSound(true);
+
+                // Spawn Particles Explosion
+                spawnFusionParticles(window.innerWidth / 2, window.innerHeight / 2, res.color);
+
+                let isNew = false;
+                if (!state.unlocked.includes(resultId)) {
+                    state.unlocked.push(resultId);
+                    isNew = true;
+                    saveState();
+                    renderElementGrid();
+                    checkQuests();
+                }
+
+                resultBanner.innerHTML = `
+                    <div class="flex items-center gap-3 animate-bounce">
+                        <span class="text-3xl">${res.emoji}</span>
+                        <div class="text-left">
+                            <div class="font-orbitron font-bold text-sm ${isNew ? 'text-yellow-400 neon-text-gold' : 'text-cyan-300'}">
+                                ${isNew ? '✨ MỞ KHÓA MỚI:' : 'CHẾ TẠO THÀNH CÔNG:'} ${res.name}
+                            </div>
+                            <div class="text-[11px] text-slate-400">${res.desc}</div>
+                        </div>
+                    </div>
+                `;
+
+                // Auto Clear slots
+                state.slot1 = null;
+                state.slot2 = null;
+                updateCraftingSlots();
+
+            } else {
+                // Failed Synthesis
+                synth.playCraftSound(false);
+                resultBanner.innerHTML = `
+                    <div class="text-rose-400 text-xs font-bold font-orbitron">
+                        💥 DUNG HỢP THẤT BẠI! Hai nguyên tố này phản ứng triệt tiêu lẫn nhau.
+                    </div>
+                `;
+            }
+        }
+
+        /* ---------------------------------------------------
+           5. GRIMOIRE & QUESTS VIEWS
+        --------------------------------------------------- */
+        function renderGrimoire() {
+            const grid = document.getElementById('grimoire-grid');
+            grid.innerHTML = '';
+
+            Object.keys(ALL_ELEMENTS).forEach(id => {
+                const el = ALL_ELEMENTS[id];
+                const isUnlocked = state.unlocked.includes(id);
+
+                const card = document.createElement('div');
+                card.className = `p-3 rounded-2xl border flex flex-col items-center text-center transition-all ${
+                    isUnlocked 
+                    ? 'bg-slate-900/80 border-slate-700 hover:border-cyan-400 shadow-md' 
+                    : 'bg-slate-950/40 border-slate-900 opacity-40 grayscale'
+                }`;
+
+                card.innerHTML = `
+                    <span class="text-3xl mb-2">${isUnlocked ? el.emoji : '❓'}</span>
+                    <span class="font-orbitron font-bold text-xs ${isUnlocked ? 'text-cyan-300' : 'text-slate-600'}">${isUnlocked ? el.name : '???'}</span>
+                    <p class="text-[10px] text-slate-400 mt-1 line-clamp-2">${isUnlocked ? el.desc : 'Chưa khám phá'}</p>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function renderQuests() {
+            const list = document.getElementById('quest-list');
+            list.innerHTML = '';
+
+            QUESTS.forEach(q => {
+                const isDone = state.completedQuests.includes(q.id);
+                const item = document.createElement('div');
+                item.className = `p-4 rounded-xl border flex items-center justify-between backdrop-blur-md ${
+                    isDone 
+                    ? 'bg-emerald-950/20 border-emerald-500/40' 
+                    : 'bg-slate-900/60 border-slate-800'
+                }`;
+
+                item.innerHTML = `
+                    <div class="flex items-center gap-4">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg ${isDone ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-500'}">
+                            ${isDone ? '✓' : '📜'}
+                        </div>
+                        <div>
+                            <h4 class="font-orbitron font-bold text-sm ${isDone ? 'text-emerald-300' : 'text-slate-200'}">${q.title}</h4>
+                            <p class="text-xs text-slate-400">${q.desc}</p>
+                            <span class="inline-block mt-1 text-[10px] font-orbitron text-pink-400">Thưởng: ${q.reward}</span>
+                        </div>
+                    </div>
+                    <div>
+                        <span class="px-3 py-1 rounded-full text-xs font-bold font-orbitron ${isDone ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-slate-800 text-slate-400'}">
+                            ${isDone ? 'HOÀN THÀNH' : 'ĐANG THỰC HIỆN'}
+                        </span>
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        function checkQuests() {
+            QUESTS.forEach(q => {
+                if (!state.completedQuests.includes(q.id) && state.unlocked.includes(q.target)) {
+                    state.completedQuests.push(q.id);
+                    saveState();
+                    // Show Quest Badge
+                    document.getElementById('quest-badge').classList.remove('hidden');
+                }
+            });
+        }
+
+        function switchTab(tab) {
+            synth.playClick();
+            document.querySelectorAll('main > section').forEach(s => s.classList.add('hidden'));
+
+            ['alchemy', 'grimoire', 'quests', 'arena'].forEach(t => {
+                const btn = document.getElementById(`tab-${t}`);
+                if (t === tab) {
+                    btn.className = 'px-3 md:px-5 py-2 rounded-lg font-orbitron font-bold text-xs md:text-sm transition-all bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 shadow-md shadow-cyan-500/20';
+                } else {
+                    btn.className = 'px-3 md:px-5 py-2 rounded-lg font-orbitron font-bold text-xs md:text-sm transition-all text-slate-400 hover:text-white hover:bg-slate-800';
+                }
+            });
+
+            document.getElementById(`view-${tab}`).classList.remove('hidden');
+
+            if (tab === 'grimoire') renderGrimoire();
+            if (tab === 'quests') {
+                document.getElementById('quest-badge').classList.add('hidden');
+                renderQuests();
+            }
+            if (tab === 'arena') initArena();
+        }
+
+        /* ---------------------------------------------------
+           6. BACKGROUND PARTICLE CANVAS
+        --------------------------------------------------- */
+        const particleCanvas = document.getElementById('particle-canvas');
+        const pCtx = particleCanvas.getContext('2d');
+
+        let particles = [];
+
+        function resizeCanvas() {
+            particleCanvas.width = window.innerWidth;
+            particleCanvas.height = window.innerHeight;
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        class BackgroundParticle {
+            constructor() {
+                this.reset();
+            }
+            reset() {
+                this.x = Math.random() * particleCanvas.width;
+                this.y = Math.random() * particleCanvas.height;
+                this.radius = Math.random() * 2 + 1;
+                this.color = Math.random() > 0.5 ? '#00f3ff' : '#ff007f';
+                this.vx = (Math.random() - 0.5) * 0.5;
+                this.vy = (Math.random() - 0.5) * 0.5;
+                this.alpha = Math.random() * 0.5 + 0.2;
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                if (this.x < 0 || this.x > particleCanvas.width || this.y < 0 || this.y > particleCanvas.height) {
+                    this.reset();
+                }
+            }
+            draw() {
+                pCtx.save();
+                pCtx.globalAlpha = this.alpha;
+                pCtx.fillStyle = this.color;
+                pCtx.beginPath();
+                pCtx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                pCtx.fill();
+                pCtx.restore();
+            }
+        }
+
+        for (let i = 0; i < 40; i++) particles.push(new BackgroundParticle());
+
+        function spawnFusionParticles(x, y, color) {
+            for (let i = 0; i < 30; i++) {
+                const p = new BackgroundParticle();
+                p.x = x;
+                p.y = y;
+                p.color = color;
+                p.vx = (Math.random() - 0.5) * 6;
+                p.vy = (Math.random() - 0.5) * 6;
+                p.radius = Math.random() * 4 + 2;
+                p.alpha = 1;
+                particles.push(p);
+            }
+        }
+
+        function animateParticles() {
+            pCtx.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
+            particles.forEach((p, idx) => {
+                p.update();
+                p.draw();
+                if (p.alpha > 0.5 && particles.length > 50) {
+                    p.alpha -= 0.01;
+                }
+            });
+            requestAnimationFrame(animateParticles);
+        }
+        animateParticles();
+
+        /* ---------------------------------------------------
+           7. MINIGAME: SPELL TESTING TOWER DEFENSE ARENA
+        --------------------------------------------------- */
+        let arenaCanvas, aCtx;
+        let arenaActive = false;
+        let arenaScore = 0;
+        let arenaHp = 3;
+        let enemies = [];
+        let projectiles = [];
+        let selectedSpell = 'fire';
+
+        function initArena() {
+            arenaCanvas = document.getElementById('arena-canvas');
+            aCtx = arenaCanvas.getContext('2d');
+
+            const container = document.getElementById('arena-container');
+            arenaCanvas.width = container.clientWidth;
+            arenaCanvas.height = container.clientHeight;
+
+            renderArenaSpellbar();
+        }
+
+        function renderArenaSpellbar() {
+            const bar = document.getElementById('arena-spellbar');
+            bar.innerHTML = '';
+
+            // Render unlocked spells in arena bar
+            state.unlocked.slice(0, 8).forEach(id => {
+                const el = ALL_ELEMENTS[id];
+                const btn = document.createElement('button');
+                btn.className = `px-3 py-2 rounded-xl border flex items-center gap-2 font-orbitron text-xs font-bold transition-all ${
+                    selectedSpell === id 
+                    ? 'bg-cyan-500/20 text-cyan-300 border-cyan-400' 
+                    : 'bg-slate-900 text-slate-400 border-slate-800'
+                }`;
+                btn.onclick = () => {
+                    selectedSpell = id;
+                    renderArenaSpellbar();
+                };
+                btn.innerHTML = `<span>${el.emoji}</span> <span>${el.name}</span>`;
+                bar.appendChild(btn);
+            });
+        }
+
+        function startArenaGame() {
+            document.getElementById('arena-start-overlay').classList.add('hidden');
+            arenaActive = true;
+            arenaScore = 0;
+            arenaHp = 3;
+            enemies = [];
+            projectiles = [];
+            updateArenaHUD();
+            
+            arenaCanvas.onclick = (e) => {
+                if (!arenaActive) return;
+                const rect = arenaCanvas.getBoundingClientRect();
+                const targetX = e.clientX - rect.left;
+                const targetY = e.clientY - rect.top;
+
+                // Tower Shooter position
+                const startX = arenaCanvas.width / 2;
+                const startY = arenaCanvas.height - 40;
+
+                const angle = Math.atan2(targetY - startY, targetX - startX);
+                
+                const spellData = ALL_ELEMENTS[selectedSpell] || ALL_ELEMENTS.fire;
+
+                projectiles.push({
+                    x: startX,
+                    y: startY,
+                    vx: Math.cos(angle) * 8,
+                    vy: Math.sin(angle) * 8,
+                    color: spellData.color,
+                    emoji: spellData.emoji
+                });
+
+                synth.playClick();
+            };
+
+            requestAnimationFrame(arenaLoop);
+        }
+
+        function updateArenaHUD() {
+            document.getElementById('arena-score').textContent = arenaScore;
+            document.getElementById('arena-hp').textContent = '❤️'.repeat(arenaHp);
+        }
+
+        function arenaLoop() {
+            if (!arenaActive) return;
+
+            aCtx.clearRect(0, 0, arenaCanvas.width, arenaCanvas.height);
+
+            // Draw Base/Tower
+            aCtx.fillStyle = '#00f3ff';
+            aCtx.beginPath();
+            aCtx.arc(arenaCanvas.width / 2, arenaCanvas.height - 20, 30, 0, Math.PI * 2);
+            aCtx.fill();
+
+            // Spawn Enemies
+            if (Math.random() < 0.03) {
+                enemies.push({
+                    x: Math.random() * (arenaCanvas.width - 40) + 20,
+                    y: -20,
+                    speed: Math.random() * 1.5 + 1,
+                    radius: 18
+                });
+            }
+
+            // Update & Draw Projectiles
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                const p = projectiles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+
+                aCtx.font = '20px Arial';
+                aCtx.textAlign = 'center';
+                aCtx.textBaseline = 'middle';
+                aCtx.fillText(p.emoji, p.x, p.y);
+
+                if (p.x < 0 || p.x > arenaCanvas.width || p.y < 0 || p.y > arenaCanvas.height) {
+                    projectiles.splice(i, 1);
+                }
+            }
+
+            // Update & Draw Enemies
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const e = enemies[i];
+                e.y += e.speed;
+
+                aCtx.fillStyle = '#f43f5e';
+                aCtx.beginPath();
+                aCtx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
+                aCtx.fill();
+
+                // Check collision with projectiles
+                for (let j = projectiles.length - 1; j >= 0; j--) {
+                    const p = projectiles[j];
+                    const dist = Math.hypot(e.x - p.x, e.y - p.y);
+                    if (dist < e.radius + 10) {
+                        enemies.splice(i, 1);
+                        projectiles.splice(j, 1);
+                        arenaScore += 10;
+                        updateArenaHUD();
+                        synth.playCraftSound(true);
+                        break;
+                    }
+                }
+
+                // Enemy reaches tower
+                if (e.y > arenaCanvas.height - 40) {
+                    enemies.splice(i, 1);
+                    arenaHp--;
+                    updateArenaHUD();
+                    synth.playCraftSound(false);
+
+                    if (arenaHp <= 0) {
+                        arenaActive = false;
+                        document.getElementById('arena-start-overlay').classList.remove('hidden');
+                        return;
+                    }
+                }
+            }
+
+            requestAnimationFrame(arenaLoop);
+        }
+
+        /* ---------------------------------------------------
+           8. INIT ON LOAD
+        --------------------------------------------------- */
+        window.onload = function() {
+            loadState();
+            renderElementGrid();
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Chém Hoa Quả</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            background: #1a1a1a;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            color: white;
+        }
+        #game-container {
+            position: relative;
+            width: 800px;
+            height: 600px;
+            background: #2c3e50;
+            border: 4px solid #ecf0f1;
+            border-radius: 10px;
+            overflow: hidden;
+            cursor: crosshair;
+        }
+        #canvas {
+            display: block;
+        }
+        #ui {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            right: 15px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 24px;
+            font-weight: bold;
+            pointer-events: none;
+        }
+        #game-over {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            display: none;
+        }
+        #game-over h1 {
+            font-size: 48px;
+            color: #e74c3c;
+            margin-bottom: 10px;
+        }
+        #restart-btn {
+            padding: 12px 24px;
+            font-size: 20px;
+            background: #2ecc71;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        #restart-btn:hover {
+            background: #27ae60;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <canvas id="canvas" width="800" height="600"></canvas>
+        <div id="ui">
+            <div>Điểm: <span id="score">0</span></div>
+            <div>Mạng: <span id="lives">❤️❤️❤️</span></div>
+        </div>
+        <div id="game-over">
+            <h1>GAME OVER</h1>
+            <p>Điểm số của bạn: <span id="final-score">0</span></p>
+            <button id="restart-btn" onclick="restartGame()">Chơi lại</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score');
+        const livesEl = document.getElementById('lives');
+        const gameOverEl = document.getElementById('game-over');
+        const finalScoreEl = document.getElementById('final-score');
+
+        let score = 0;
+        let lives = 3;
+        let isGameOver = false;
+
+        // Vết chém (Mouse Trail)
+        let mouseTrail = [];
+        let isMouseDown = false;
+
+        // Danh sách hoa quả & mảnh vỡ
+        let fruits = [];
+        let particles = [];
+
+        // Cấu hình các loại quả
+        const FRUIT_TYPES = [
+            { emoji: '🍎', color: '#e74c3c', radius: 25 },
+            { emoji: '🍉', color: '#2ecc71', radius: 30 },
+            { emoji: '🍌', color: '#f1c40f', radius: 25 },
+            { emoji: '🍊', color: '#e67e22', radius: 22 },
+            { emoji: '💣', color: '#34495e', radius: 25, isBomb: true }
+        ];
+
+        class Fruit {
+            constructor() {
+                const type = FRUIT_TYPES[Math.floor(Math.random() * FRUIT_TYPES.length)];
+                this.emoji = type.emoji;
+                this.color = type.color;
+                this.radius = type.radius;
+                this.isBomb = type.isBomb || false;
+
+                this.x = Math.random() * (canvas.width - 100) + 50;
+                this.y = canvas.height + this.radius;
+
+                // Tốc độ bắn lên
+                this.vx = (Math.random() - 0.5) * 4;
+                this.vy = -(Math.random() * 4 + 11);
+                this.gravity = 0.25;
+
+                this.sliced = false;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += this.gravity;
+            }
+
+            draw() {
+                ctx.font = `${this.radius * 2}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(this.emoji, this.x, this.y);
+            }
+        }
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.radius = Math.random() * 4 + 2;
+                this.vx = (Math.random() - 0.5) * 8;
+                this.vy = (Math.random() - 0.5) * 8;
+                this.alpha = 1;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.alpha -= 0.02;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        // Bắt sự kiện chuột
+        canvas.addEventListener('mousedown', (e) => {
+            isMouseDown = true;
+            addTrail(e);
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (isMouseDown) addTrail(e);
+        });
+
+        canvas.addEventListener('mouseup', () => isMouseDown = false);
+
+        function addTrail(e) {
+            const rect = canvas.getBoundingClientRect();
+            mouseTrail.push({
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top,
+                time: Date.now()
+            });
+        }
+
+        function createSplatter(x, y, color) {
+            for (let i = 0; i < 15; i++) {
+                particles.push(new Particle(x, y, color));
+            }
+        }
+
+        function checkSlice() {
+            if (mouseTrail.length < 2) return;
+
+            const p1 = mouseTrail[mouseTrail.length - 2];
+            const p2 = mouseTrail[mouseTrail.length - 1];
+
+            fruits.forEach((fruit) => {
+                if (fruit.sliced) return;
+
+                // Khoảng cách từ hoa quả tới điểm chuột gần nhất
+                const dist = Math.hypot(fruit.x - p2.x, fruit.y - p2.y);
+
+                if (dist < fruit.radius) {
+                    fruit.sliced = true;
+
+                    if (fruit.isBomb) {
+                        endGame();
+                    } else {
+                        score += 10;
+                        scoreEl.textContent = score;
+                        createSplatter(fruit.x, fruit.y, fruit.color);
+                    }
+                }
+            });
+        }
+
+        function spawnFruit() {
+            if (isGameOver) return;
+            if (Math.random() < 0.03) {
+                fruits.push(new Fruit());
+            }
+        }
+
+        function updateLives() {
+            livesEl.textContent = '❤️'.repeat(lives);
+        }
+
+        function endGame() {
+            isGameOver = true;
+            finalScoreEl.textContent = score;
+            gameOverEl.style.display = 'flex';
+        }
+
+        function restartGame() {
+            score = 0;
+            lives = 3;
+            isGameOver = false;
+            fruits = [];
+            particles = [];
+            scoreEl.textContent = score;
+            updateLives();
+            gameOverEl.style.display = 'none';
+            animate();
+        }
+
+        function animate() {
+            if (isGameOver) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Sinh hoa quả
+            spawnFruit();
+
+            // Cập nhật & vẽ hiệu ứng chém (Mouse Trail)
+            const now = Date.now();
+            mouseTrail = mouseTrail.filter(p => now - p.time < 150);
+
+            if (mouseTrail.length > 1) {
+                ctx.beginPath();
+                ctx.moveTo(mouseTrail[0].x, mouseTrail[0].y);
+                for (let i = 1; i < mouseTrail.length; i++) {
+                    ctx.lineTo(mouseTrail[i].x, mouseTrail[i].y);
+                }
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 5;
+                ctx.lineCap = 'round';
+                ctx.stroke();
+
+                checkSlice();
+            }
+
+            // Cập nhật & vẽ hoa quả
+            for (let i = fruits.length - 1; i >= 0; i--) {
+                const fruit = fruits[i];
+                fruit.update();
+                fruit.draw();
+
+                // Nếu quả rơi ra ngoài màn hình mà chưa bị chém (không tính bom)
+                if (fruit.y - fruit.radius > canvas.height) {
+                    if (!fruit.sliced && !fruit.isBomb) {
+                        lives--;
+                        updateLives();
+                        if (lives <= 0) endGame();
+                    }
+                    fruits.splice(i, 1);
+                } else if (fruit.sliced) {
+                    fruits.splice(i, 1);
+                }
+            }
+
+            // Cập nhật & vẽ hạt hiệu ứng
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.update();
+                p.draw();
+                if (p.alpha <= 0) particles.splice(i, 1);
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
